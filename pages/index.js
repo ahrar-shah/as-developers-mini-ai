@@ -1,90 +1,181 @@
-import { useState, useRef } from 'react';
+// pages/index.js
+import { useEffect, useState, useRef } from 'react';
 
 export default function Home() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Salaam! Main aapki AI assistant hoon. Kuch poochna hai?' }
-  ]);
+  const [mode, setMode] = useState('auth'); // 'auth' or 'chat'
+  const [authMode, setAuthMode] = useState('signin'); // signin | signup
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
   const endRef = useRef(null);
 
-  const send = async () => {
-    if (!input.trim()) return;
+  useEffect(() => {
+    // try to fetch current user
+    fetch('/api/user').then(r => r.json()).then(data => {
+      if (data?.user) {
+        setUser(data.user);
+        setMode('chat');
+        loadMessages();
+      } else {
+        setMode('auth');
+      }
+    });
+  }, []);
 
-    const newMessages = [...messages, { role: 'user', content: input }];
-    setMessages(newMessages);
+  const loadMessages = async () => {
+    const res = await fetch('/api/messages?limit=500');
+    const json = await res.json();
+    if (json?.messages) setMessages(json.messages);
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
+  async function handleSignup(e) {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name })
+    });
+    const j = await res.json();
+    setLoading(false);
+    if (res.ok) {
+      setUser(j.user);
+      setMode('chat');
+      loadMessages();
+    } else alert(j.error || 'Signup failed');
+  }
+
+  async function handleSignin(e) {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch('/api/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const j = await res.json();
+    setLoading(false);
+    if (res.ok) {
+      setUser(j.user);
+      setMode('chat');
+      loadMessages();
+    } else alert(j.error || 'Signin failed');
+  }
+
+  async function handleSignout() {
+    await fetch('/api/auth/signout', { method: 'POST' });
+    setUser(null);
+    setMode('auth');
+    setMessages([]);
+    setEmail('');
+    setPassword('');
+  }
+
+  async function sendMessage() {
+    if (!input.trim()) return;
+    const msg = input.trim();
+    setMessages(prev => [...prev, { role: 'user', content: msg }]);
     setInput('');
     setLoading(true);
 
     try {
-      const resp = await fetch('/api/generate', {
+      const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages.slice(-10) }) // last 10 msgs
+        body: JSON.stringify({ message: msg })
       });
-
-      const data = await resp.json();
-      if (data.error) throw new Error(data.error);
-
-      setMessages(prev => [...prev, { role: 'assistant', content: data.text }]);
+      const j = await res.json();
+      if (j.text) {
+        setMessages(prev => [...prev, { role: 'assistant', content: j.text }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }]);
+      }
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Maaf — kuch galat ho gaya.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error calling API.' }]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      send();
+      sendMessage();
     }
   };
 
-  return (
-    <div style={{ maxWidth: 800, margin: '40px auto', fontFamily: 'Inter, sans-serif' }}>
-      <header>
-        <h1 style={{ textAlign: 'center' }}>{process.env.NEXT_PUBLIC_APP_NAME || 'Cohere Chat'}</h1>
-      </header>
+  if (mode === 'auth') {
+    return (
+      <div className="container">
+        <div className="card auth-card">
+          <h2>{authMode === 'signin' ? 'Sign In' : 'Create account'}</h2>
 
-      <main style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, minHeight: 400 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <form onSubmit={authMode === 'signin' ? handleSignin : handleSignup}>
+            {authMode === 'signup' && (
+              <input placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+            )}
+            <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+            <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            <button type="submit" disabled={loading}>{loading ? 'Please wait...' : authMode === 'signin' ? 'Sign In' : 'Sign Up'}</button>
+          </form>
+
+          <div className="muted">
+            {authMode === 'signin' ? (
+              <>
+                New here? <button className="link" onClick={() => setAuthMode('signup')}>Create an account</button>
+              </>
+            ) : (
+              <>
+                Already have an account? <button className="link" onClick={() => setAuthMode('signin')}>Sign in</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Chat UI
+  return (
+    <div className="container">
+      <div className="topbar">
+        <div className="title">Cohere Chat</div>
+        <div>
+          <span className="muted">Signed in as {user?.email}</span>
+          <button className="btn-ghost" onClick={handleSignout}>Logout</button>
+        </div>
+      </div>
+
+      <div className="chat-window">
+        <div className="messages">
           {messages.map((m, i) => (
-            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-              <div style={{
-                background: m.role === 'user' ? '#111827' : '#f3f4f6',
-                color: m.role === 'user' ? 'white' : 'black',
-                padding: '10px 14px',
-                borderRadius: 8
-              }}>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
-              </div>
+            <div key={i} className={`message ${m.role === 'user' ? 'user' : 'assistant'}`}>
+              <div className="bubble"><div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div></div>
             </div>
           ))}
           <div ref={endRef} />
         </div>
-      </main>
 
-      <footer style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <textarea
-          rows={2}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={loading ? 'Generating...' : 'Type your message and press Enter'}
-          style={{ flex: 1, padding: 10, borderRadius: 6, border: '1px solid #e5e7eb' }}
-          disabled={loading}
-        />
-        <button onClick={send} disabled={loading} style={{ padding: '8px 14px', borderRadius: 6 }}>
-          {loading ? '...' : 'Send'}
-        </button>
-      </footer>
-
-      <p style={{ marginTop: 12, fontSize: 12, color: '#6b7280' }}>
-        Tip: Press Enter to send. This is minimal — customize UX, add auth, rate limits, etc.
-      </p>
+        <div className="composer">
+          <textarea
+            rows={2}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={loading ? 'Generating...' : 'Type a message and press Enter'}
+            disabled={loading}
+          />
+          <button onClick={sendMessage} disabled={loading} className="send-btn">{loading ? '...' : 'Send'}</button>
+        </div>
+      </div>
     </div>
   );
 }
+
