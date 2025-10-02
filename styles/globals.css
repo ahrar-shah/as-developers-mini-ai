@@ -1,0 +1,132 @@
+/* styles/globals.css - minimal ChatGPT-like look */
+
+:root {
+  --bg: #0f1724;
+  --card: #0b1220;
+  --muted: #9aa4b2;
+  --accent: #10b981;
+  --bubble-user: #111827;
+  --bubble-assistant: #f3f4f6;
+}
+
+* { box-sizing: border-box; }
+html,body,#__next { height: 100%; margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: #f8fafc; color: #111827; }
+
+.container {
+  max-width: 900px;
+  margin: 28px auto;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.title { font-weight: 700; font-size: 20px; }
+.muted { color: var(--muted); margin-right: 12px; font-size: 14px; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #e6eef3;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.chat-window {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: white;
+}
+
+/* Messages area */
+.messages {
+  padding: 18px;
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message { display: flex; }
+.message.user { justify-content: flex-end; }
+.message.assistant { justify-content: flex-start; }
+
+.bubble {
+  max-width: 75%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  line-height: 1.45;
+  background: var(--bubble-assistant);
+  color: #0f1724;
+}
+
+/* user bubble style */
+.message.user .bubble {
+  background: var(--bubble-user);
+  color: white;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #e5e7eb;
+  align-items: center;
+}
+
+.composer textarea {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  resize: none;
+  font-size: 14px;
+}
+
+.send-btn {
+  background: #0f1724;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Auth card */
+.auth-card {
+  max-width: 420px;
+  margin: 120px auto;
+  padding: 20px;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+}
+
+.auth-card h2 { margin: 0 0 12px; }
+.auth-card input {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.auth-card button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #0f1724;
+  color: white;
+  cursor: pointer;
+}
+.muted .link { color: #0f1724; background: none; border: none; cursor: pointer; text-decoration: underline; }
