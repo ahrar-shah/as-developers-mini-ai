@@ -1,57 +1,40 @@
-// pages/api/auth/signup.js
-import { supabaseAdmin } from '../../../lib/supabase';
-import bcrypt from 'bcryptjs';
-import { signToken, setTokenCookie } from '../../../lib/auth';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { email, password, name } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  if (req.method !== "POST") return res.status(405).end();
 
   try {
-    // check existing
-    const { data: existing } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .limit(1);
-
-    if (existing?.length) {
-      return res.status(400).json({ error: 'User already exists' });
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Missing fields" });
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
+    // hash password
+    const hash = await bcrypt.hash(password, 10);
 
+    // insert user
     const { data, error } = await supabaseAdmin
-      .from('users')
-      .insert([{ email, password_hash, name }])
-      .select('*')
-      .single();
+      .from("users")
+      .insert([{ name, email, password_hash: hash }])
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase insert error:", error); // 🔥 will show exact issue in Vercel logs
+      return res.status(400).json({ error: error.message });
+    }
 
-    const token = signToken({ userId: data.id, email: data.email }, { expiresIn: '30d' });
-    setTokenCookie(res, token);
+    const user = data[0];
 
-    return res.status(201).json({ user: { id: data.id, email: data.email, name: data.name } });
+    // issue JWT
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    return res.status(200).json({ user, token });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Signup failed' });
+    console.error("Signup handler error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
-
-
-
-
-// Error Checking
-
-const { data, error } = await supabaseAdmin
-  .from('users')
-  .insert([{ email, password_hash: hash, name }])
-  .select();
-
-if (error) {
-  console.error("Signup error:", error);
-  return res.status(400).json({ error: error.message });
-}
-
