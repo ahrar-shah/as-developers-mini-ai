@@ -11,12 +11,12 @@ export default async function handler(req, res) {
     }
 
     const response = await cohere.generate({
-      model: "command-xlarge-nightly",
+      model: "command-r",   // ✅ try "command-r" or "command-r-plus"
       prompt: message,
-      max_tokens: 200,
+      max_tokens: 300,
     });
 
-    const text = response.generations?.[0]?.text || null;
+    const text = response.generations?.[0]?.text?.trim() || null;
 
     if (!text) {
       return res.status(500).json({ error: "Empty response from Cohere" });
