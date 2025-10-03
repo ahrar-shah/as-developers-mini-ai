@@ -7,34 +7,37 @@ export default async function handler(req, res) {
 
   try {
     const { name, email, password } = req.body;
+
     if (!name || !email || !password) {
-      return res.status(400).json({ error: "Missing fields" });
+      return res.status(400).json({ error: "All fields are required" });
     }
 
-    // hash password
-    const hash = await bcrypt.hash(password, 10);
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    // insert user
+    // Insert into Supabase
     const { data, error } = await supabaseAdmin
       .from("users")
-      .insert([{ name, email, password_hash: hash }])
+      .insert([{ name, email, password_hash: passwordHash }])
       .select();
 
     if (error) {
-      console.error("Supabase insert error:", error); // 🔥 will show exact issue in Vercel logs
+      console.error("❌ Supabase insert error:", error);
       return res.status(400).json({ error: error.message });
     }
 
     const user = data[0];
 
-    // issue JWT
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     return res.status(200).json({ user, token });
   } catch (err) {
-    console.error("Signup handler error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Signup API error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 }
